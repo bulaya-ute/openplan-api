@@ -1,0 +1,26 @@
+[Unit]
+Description=OpenPlan API
+Documentation=https://github.com/bulaya-ute/openplan-api
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=openplan
+Group=openplan
+
+WorkingDirectory=/opt/apps/openplan-api/publish
+ExecStart=/usr/bin/dotnet /opt/apps/openplan-api/publish/OpenPlan.API.dll
+
+# Load secrets from a file outside the repo (not committed to git)
+EnvironmentFile=/etc/openplan/api.env
+
+Restart=always
+RestartSec=10
+
+# Harden the service
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
