@@ -33,7 +33,7 @@ CREATE DATABASE openplan OWNER openplan;
 dotnet run --project OpenPlan.API
 ```
 
-Migrations are applied automatically on startup. API is available at `http://localhost:5000`.
+Migrations are applied automatically on startup. API is available at `http://localhost:5040`.
 
 ## Configuration
 
@@ -45,7 +45,7 @@ All settings live in `OpenPlan.API/appsettings.json` and can be overridden with 
 | `Jwt__Secret` | *(must change)* | JWT signing secret — at least 32 characters |
 | `Jwt__Issuer` | `openplan` | JWT issuer claim |
 | `Jwt__Audience` | `openplan-clients` | JWT audience claim |
-| `Cors__Origins` | `http://localhost:5173` | Comma-separated allowed CORS origins |
+| `Cors__Origins` | `http://localhost:5041` | Comma-separated allowed CORS origins |
 
 > Never use the default `Jwt__Secret` in production. Generate one with `openssl rand -base64 32`.
 

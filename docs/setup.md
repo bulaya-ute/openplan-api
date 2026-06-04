@@ -22,7 +22,7 @@ Or update `ConnectionStrings:DefaultConnection` in `OpenPlan.API/appsettings.jso
 dotnet run --project OpenPlan.API
 ```
 
-Migrations apply automatically on startup. API is at `http://localhost:5000`.
+Migrations apply automatically on startup. API is at `http://localhost:5040`.
 
 ### 3. Manual Migrations
 
@@ -43,7 +43,7 @@ Override any `appsettings.json` value with environment variables using `__` as s
 | `Jwt__Secret` | *(must change)* | JWT signing secret — at least 32 characters |
 | `Jwt__Issuer` | `openplan` | JWT issuer |
 | `Jwt__Audience` | `openplan-clients` | JWT audience |
-| `Cors__Origins` | `http://localhost:5173` | Comma-separated allowed CORS origins |
+| `Cors__Origins` | `http://localhost:5041` | Comma-separated allowed CORS origins |
 
 > **Security:** Generate a strong JWT secret with `openssl rand -base64 32`. Never commit secrets to source control.
 
@@ -95,7 +95,7 @@ server {
     server_name api.yourdomain.com;
 
     location / {
-        proxy_pass http://localhost:5000;
+        proxy_pass http://localhost:5040;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
