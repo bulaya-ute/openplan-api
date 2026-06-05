@@ -6,6 +6,25 @@ The backend for [OpenPlan](https://github.com/bulaya-ute/openplan-web) — a sel
 
 ---
 
+## Quick Install (Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/bulaya-ute/openplan-api/main/deploy/setup.sh \
+  -o setup.sh && bash setup.sh
+```
+
+The script walks you through every setting interactively — install directories, database credentials, ports, service names, JWT secret, CORS origins, and more. It installs all prerequisites, sets up PostgreSQL, publishes the API as a systemd service, builds the web and admin apps, and starts the updater daemon.
+
+If the script exits partway through, re-run it — completed stages are skipped automatically.
+
+| Platform | Script |
+|---|---|
+| Linux | [`deploy/setup.sh`](deploy/setup.sh) |
+| Windows | [`deploy/setup-windows.ps1`](deploy/setup-windows.ps1) *(stub — contributions welcome)* |
+| macOS | [`deploy/setup-mac.sh`](deploy/setup-mac.sh) *(stub — contributions welcome)* |
+
+---
+
 ## Tech Stack
 
 - .NET 8 Web API (controllers style)
