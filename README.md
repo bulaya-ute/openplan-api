@@ -23,8 +23,8 @@ The backend for [OpenPlan](https://github.com/bulaya-ute/openplan-web) — a sel
 ### Database
 
 ```sql
-CREATE USER openplan WITH PASSWORD 'openplan';
-CREATE DATABASE openplan OWNER openplan;
+CREATE USER openplan_user WITH PASSWORD 'your_password';
+CREATE DATABASE openplan_db OWNER openplan_user;
 ```
 
 ### Run
