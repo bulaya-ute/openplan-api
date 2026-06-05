@@ -12,6 +12,9 @@ Group=openplan
 WorkingDirectory=/opt/apps/openplan-api/publish
 ExecStart=/usr/bin/dotnet /opt/apps/openplan-api/publish/OpenPlan.API.dll
 
+Environment=ASPNETCORE_URLS=http://localhost:5040
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
 # Load secrets from a file outside the repo (not committed to git)
 EnvironmentFile=/etc/openplan/api.env
 
