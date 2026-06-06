@@ -11,7 +11,7 @@
 set -uo pipefail
 IFS=$'\n\t'
 
-SETUP_VERSION="0.1.0"
+SETUP_VERSION="0.2.0"
 LOG="/tmp/openplan-setup.log"
 STATE="/tmp/openplan-setup.state"
 CONF="/tmp/openplan-setup.conf"
@@ -116,8 +116,9 @@ save_conf() {
         printf 'CFG_DB_USER=%q\n'      "$CFG_DB_USER"
         printf 'CFG_DB_PASS=%q\n'      "$CFG_DB_PASS"
         printf 'CFG_JWT_SECRET=%q\n'   "$CFG_JWT_SECRET"
-        printf 'CFG_CORS_ORIGINS=%q\n' "$CFG_CORS_ORIGINS"
-        printf 'CFG_GITHUB_REPO=%q\n'  "$CFG_GITHUB_REPO"
+        printf 'CFG_CORS_ORIGINS=%q\n'    "$CFG_CORS_ORIGINS"
+        printf 'CFG_API_PUBLIC_URL=%q\n' "$CFG_API_PUBLIC_URL"
+        printf 'CFG_GITHUB_REPO=%q\n'   "$CFG_GITHUB_REPO"
         printf 'CFG_GITHUB_TOKEN=%q\n' "$CFG_GITHUB_TOKEN"
         printf 'CFG_BACKUPS_DIR=%q\n'  "$CFG_BACKUPS_DIR"
     } > "$CONF"
@@ -198,6 +199,7 @@ CFG_DB_USER="openplan_user"
 CFG_DB_PASS=""
 CFG_JWT_SECRET=""
 CFG_CORS_ORIGINS="http://localhost:5041,http://localhost:5042"
+CFG_API_PUBLIC_URL=""
 CFG_GITHUB_REPO="bulaya-ute/openplan-api"
 CFG_GITHUB_TOKEN=""
 CFG_BACKUPS_DIR="/var/backups/openplan"
@@ -337,6 +339,13 @@ stage_configure() {
     info "Example: https://app.example.com,https://admin.example.com"
     ask "CORS origins" "$CFG_CORS_ORIGINS"; CFG_CORS_ORIGINS="$_VAL"
 
+    h2 "Public API URL"
+    info "The URL browsers use to reach the API — baked into the web and admin app builds."
+    info "Use your public domain in production (e.g. https://api.example.com/api/v1)."
+    local _default_api_url="http://localhost:$CFG_API_PORT/api/v1"
+    ask "Public API URL" "${CFG_API_PUBLIC_URL:-$_default_api_url}"
+    CFG_API_PUBLIC_URL="$_VAL"
+
     h2 "GitHub (for version management)"
     ask "API GitHub repo (owner/repo)" "$CFG_GITHUB_REPO"; CFG_GITHUB_REPO="$_VAL"
     ask "GitHub token (leave blank for public repos)" "$CFG_GITHUB_TOKEN"
@@ -363,6 +372,7 @@ stage_configure() {
     printf "  %-34s %s\n" "Database user:"            "$CFG_DB_USER"
     printf "  %-34s %s\n" "Database password:"        "(hidden)"
     printf "  %-34s %s\n" "CORS origins:"             "$CFG_CORS_ORIGINS"
+    printf "  %-34s %s\n" "Public API URL:"           "$CFG_API_PUBLIC_URL"
     printf "  %-34s %s\n" "GitHub repo:"              "$CFG_GITHUB_REPO"
     printf "  %-34s %s\n" "Backups directory:"        "$CFG_BACKUPS_DIR"
     printf "\n"
@@ -417,7 +427,25 @@ stage_database() {
     _db_exists=$(sudo -u postgres psql -tAc \
         "SELECT 1 FROM pg_database WHERE datname='$CFG_DB_NAME'" 2>/dev/null || true)
     if [[ "$_db_exists" == "1" ]]; then
-        warn "Database '$CFG_DB_NAME' already exists — skipping creation."
+        warn "Database '$CFG_DB_NAME' already exists."
+        ask_choice "What would you like to do?" \
+            "Keep existing data" \
+            "Drop and recreate  ⚠  ALL DATA WILL BE LOST"
+        if [[ "$_VAL" == "2" ]]; then
+            if ask_yn "DESTRUCTIVE: permanently delete all data in '$CFG_DB_NAME'?"; then
+                # Terminate active connections before dropping
+                run sudo -u postgres psql \
+                    -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$CFG_DB_NAME' AND pid <> pg_backend_pid();"
+                run sudo -u postgres psql -c "DROP DATABASE $CFG_DB_NAME;"
+                run sudo -u postgres psql \
+                    -c "CREATE DATABASE $CFG_DB_NAME OWNER $CFG_DB_USER;"
+                ok "Database dropped and recreated: $CFG_DB_NAME"
+            else
+                info "Keeping existing database."
+            fi
+        else
+            info "Keeping existing database."
+        fi
     else
         run sudo -u postgres psql \
             -c "CREATE DATABASE $CFG_DB_NAME OWNER $CFG_DB_USER;"
@@ -522,6 +550,25 @@ EOF
     run mkdir -p "$CFG_BACKUPS_DIR"
     run chown openplan:openplan "$CFG_BACKUPS_DIR"
 
+    # Apply migrations explicitly before the service first starts.
+    # The service also calls MigrateAsync() on startup, but running it here
+    # with the correct credentials prevents a crash if the DB state is stale.
+    h2 "Applying database migrations"
+    export PATH="$PATH:$HOME/.dotnet/tools"
+    if ! dotnet tool list -g 2>/dev/null | grep -q 'dotnet-ef'; then
+        info "Installing dotnet-ef tool..."
+        run dotnet tool install --global dotnet-ef
+    else
+        ok "dotnet-ef: found"
+    fi
+    if ! $DRY_RUN; then
+        dotnet ef database update \
+            --project "$CFG_API_DIR/OpenPlan.API" \
+            --connection "Host=$CFG_DB_HOST;Port=$CFG_DB_PORT;Database=$CFG_DB_NAME;Username=$CFG_DB_USER;Password=$CFG_DB_PASS" \
+            && ok "Migrations applied" \
+            || warn "dotnet ef migration failed — the service will retry on startup; check $LOG"
+    fi
+
     # Systemd service
     if ! $DRY_RUN; then
         cat > "/etc/systemd/system/$CFG_API_SVC.service" <<EOF
@@ -581,7 +628,8 @@ stage_webapps() {
         ok "Node.js: $(node --version)"
     fi
 
-    local _api_url="http://localhost:$CFG_API_PORT/api/v1"
+    local _api_url="${CFG_API_PUBLIC_URL:-http://localhost:$CFG_API_PORT/api/v1}"
+    info "Building with VITE_API_URL=$_api_url"
 
     _build_static() {
         local name="$1" src="$2" dest="$3" repo="$4"
@@ -768,11 +816,11 @@ stage_summary() {
     printf "  journalctl -u %s -f\n\n" "$CFG_API_SVC"
 
     printf "${YELLOW}${BOLD}  Remaining manual steps:${NC}\n"
-    printf "  1. Set up a reverse proxy (Nginx/Caddy) in front of http://localhost:%s\n" "$CFG_API_PORT"
-    printf "  2. Serve %s/dist  →  web app domain\n" "$CFG_WEB_DIR"
-    printf "  3. Serve %s/dist  →  admin domain\n" "$CFG_ADMIN_DIR"
-    printf "  4. Obtain TLS certificates — e.g. certbot --nginx -d app.yourdomain.com\n"
-    printf "  5. Register the first account — it is automatically granted admin privileges\n\n"
+    printf "  1. Point your reverse proxy (Caddy/Nginx) at:\n"
+    printf "       API:    http://localhost:%s   (proxy_pass)\n" "$CFG_API_PORT"
+    printf "       Web:    %s/dist              (file_server / root)\n" "$CFG_WEB_DIR"
+    printf "       Admin:  %s/dist              (file_server / root)\n" "$CFG_ADMIN_DIR"
+    printf "  2. Register the first account — it is automatically granted admin privileges\n\n"
     printf "  Full log: %s\n\n" "$LOG"
 }
 
