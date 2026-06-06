@@ -181,10 +181,10 @@ trap _on_exit EXIT
 # =============================================================================
 # CONFIG DEFAULTS  (overridden by saved config or user input in Stage 2)
 # =============================================================================
-CFG_API_DIR="/opt/apps/openplan-api"
-CFG_WEB_DIR="/opt/apps/openplan-web"
-CFG_ADMIN_DIR="/opt/apps/openplan-admin"
-CFG_UPDATER_DIR="/opt/apps/openplan-updater"
+CFG_API_DIR="/opt/apps/openplan/openplan-api"
+CFG_WEB_DIR="/opt/apps/openplan/openplan-web"
+CFG_ADMIN_DIR="/opt/apps/openplan/openplan-admin"
+CFG_UPDATER_DIR="/opt/apps/openplan/openplan-updater"
 CFG_API_SRC="github"
 CFG_WEB_SRC="github"
 CFG_ADMIN_SRC="github"
@@ -690,9 +690,9 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 PORT        = int(os.environ.get('UPDATER_PORT', '5050'))
-API_DIR     = os.environ.get('API_DIR',    '/opt/apps/openplan-api')
-WEB_DIR     = os.environ.get('WEB_DIR',    '/opt/apps/openplan-web')
-ADMIN_DIR   = os.environ.get('ADMIN_DIR',  '/opt/apps/openplan-admin')
+API_DIR     = os.environ.get('API_DIR',    '/opt/apps/openplan/openplan-api')
+WEB_DIR     = os.environ.get('WEB_DIR',    '/opt/apps/openplan/openplan-web')
+ADMIN_DIR   = os.environ.get('ADMIN_DIR',  '/opt/apps/openplan/openplan-admin')
 API_SVC     = os.environ.get('API_SVC',    'openplan-api')
 PUBLISH_DIR = os.path.join(API_DIR, 'publish')
 

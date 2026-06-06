@@ -65,4 +65,8 @@ app.UseAuthorization();
 app.UseMiddleware<AccessControlMiddleware>();
 app.MapControllers();
 
+app.MapGet("/api/v1/health", () => Results.Ok(new { status = "ok" }))
+   .AllowAnonymous()
+   .ExcludeFromDescription();
+
 app.Run();
